@@ -49,7 +49,7 @@ def identify_fingers(image, finger_components, x, y):
         if low[i] != -1:
             x_val = image[low[i]].index(i)
             y_val = low[i]
-            finger_type = intersect(x_val, y_val, x, y, palm_line) * 4 // len
+            finger_type = intersect(x_val, y_val, x, y, palm_line) * 4 // len_palm
             ret.append([image[high[i]].index(i), high[i], finger_type])
 
     return ret
