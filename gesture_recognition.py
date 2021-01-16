@@ -108,9 +108,39 @@ while camera.isOpened():
             for contour in contours[:-1]:
                 cv2.drawContours(thresh, [contour], -1, (0, 0, 0), -1)
 
-        # Ben's Method
-        # Returns cropped hand and the position of the found bounding box to remap the transforms
-        # Also returns wrist line
+            c = contours[-1]
+            (x, y, w, h) = cv2.boundingRect(c)
+            mask = np.zeros(gray.shape, dtype="uint8")
+            cv2.drawContours(mask, [c], -1, 255, -1)
+            imageROI = thresh[y:y + h, x:x + w]
+            maskROI = mask[y:y + h, x:x + w]
+            imageROI = cv2.bitwise_and(imageROI, imageROI,
+                                       mask=maskROI)
+
+            idealAngle = 0
+            minArea = float("inf")
+            for angle in np.arange(15, 375, 15):
+                if angle in [90, 180, 270]:
+                    continue
+                rotated = imutils.rotate_bound(maskROI, angle)
+                roicontours, hierarchy = cv2.findContours(rotated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+                if len(roicontours) > 0:
+                    roicontours = sorted(roicontours, key=lambda x: cv2.contourArea(x))
+                    (mbbx, mbby, mbbw, mbbh) = cv2.boundingRect(roicontours[-1])
+                    if mbbw * mbbh < minArea:
+                        minArea = mbbw * mbbh
+                        idealAngle = angle
+
+            mbb = imutils.rotate_bound(imageROI, idealAngle)
+            mbbcontours, hierarchy = cv2.findContours(mbb, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+            mbbcontours = sorted(mbbcontours, key=lambda x: cv2.contourArea(x))
+            (x, y, w, h) = cv2.boundingRect(mbbcontours[-1])
+            mbb = mbb[y:y + h, x:x + w]
+            cv2.imshow("ROI", mbb)
+
+            # Ben's Method
+            # Returns cropped hand and the position of the found bounding box to remap the transforms
+            # Also returns wrist line
 
         # Distance transform creates a map where the pixels furthest away from an edge have a larger value
         dt, labelsw, labelsb = bwdist(thresh, cv2.DIST_C, cv2.DIST_MASK_3)  # wtb, btw
