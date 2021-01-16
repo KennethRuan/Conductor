@@ -36,13 +36,13 @@ while True:
         print("exiting")
         sys.exit()
     if command == 'p':
-        print(mouse.get_position())
+        print(pyautogui.position())
     if command == 'm':
         command = input(" \'l\' for left click \n \'r\' for right click \n \'n\' for none \n")
         print("enter coordinates to move to (on separate lines pls): \n")
         tryX = int(input())
         tryY = int(input())
-        prevX = mouse.get_position()[0]
-        prevY = mouse.get_position()[1]
+        prevX = pyautogui.position()[0]
+        prevY = pyautogui.position()[1]
         mouseMovement(tryX, tryY, command)
     print("\n \n")
