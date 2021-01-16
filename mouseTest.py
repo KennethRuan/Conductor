@@ -4,7 +4,7 @@ prevY = 0
 def mouseMovement(curX, curY):
     global prevX, prevY
     #if distance between previous frame is too small, don't move
-    if (curX-prevX<-10 or curX-prevX>10) and (curY-prevY<-10 or curY-prevY>10):
+    if (curX-prevX<-10 or curX-prevX>10) or (curY-prevY<-10 or curY-prevY>10):
         mouse.move(curX-prevX, curY-prevY, absolute=False, duration=0.1)
     prevX = curX
     prevY = curY
