@@ -73,7 +73,7 @@ def minPalmBound(img, center):
         inner = r
 
         if sampleFound:
-            r *= 1.2
+            r *= 1.15
             for idx in range(numSamplePoints):
                 a = 360 / numSamplePoints * idx
                 x = int(np.cos(a * np.pi / 180) * r + ox)
@@ -86,19 +86,58 @@ def minPalmBound(img, center):
     return mask, inner
 
 
+def euDist(p1, p2):
+    p1x, p1y, p2x, p2y = p1[0], p1[1], p2[0], p2[1]
+    dist = np.sqrt((p1x-p2x)**2 + (p1y-p2y)**2)
+    return dist
+
+
+def angleCalc(p1, p2):
+    y1, x1, y2, x2 = p1[0], p1[1], p2[0], p2[1]
+    dx = x1 - x2
+    dy = y1 - y2
+    if dx == 0:
+        dx = 1
+    if dy == 0:
+        dy = 1
+    res = np.arctan(dy/dx)
+    return res * 180/np.pi
+
+
+def rotate_points(bb, h, w, angle):
+    cy, cx = h//2, w//2
+    new_bb = list(bb)
+    for i, coord in enumerate(bb):
+        # opencv calculates standard transformation matrix
+        M = cv2.getRotationMatrix2D((cx, cy), angle, 1.0)
+        # Grab  the rotation components of the matrix)
+        cos = np.abs(M[0, 0])
+        sin = np.abs(M[0, 1])
+        # compute the new bounding dimensions of the image
+        nW = int((h * sin) + (w * cos))
+        nH = int((h * cos) + (w * sin))
+        # adjust the rotation matrix to take into account translation
+        M[0, 2] += (nW / 2) - cx
+        M[1, 2] += (nH / 2) - cy
+        # Prepare the vector to be transformed
+        v = [coord[0],coord[1],1]
+        # Perform the actual rotation and return the image
+        calculated = np.dot(M,v)
+        new_bb[i] = (int(round(calculated[0])), int(round(calculated[1])))
+    return new_bb
+
 camera = cv2.VideoCapture(0, cv2.CAP_DSHOW)
 camera.set(10, 200)
 
 while camera.isOpened():
     ret, frame = camera.read()
     frame = cv2.flip(frame, 1)  # Flip frame horizontally
-
+    pre = time.clock()
     if bgCaptured:
         # Crop the image in the bounding box
         img = removeBackground(frame)
         img = img[:int(yBound * frame.shape[0]),
               int((1 - xBound) * frame.shape[1]):]
-        print('a')
         cv2.imshow('filtered', img)
         # Grayscale and blurring
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -106,7 +145,6 @@ while camera.isOpened():
 
         # Using a threshold to determine how 'blurry' an edge can be and included
         ret, thresh = cv2.threshold(blur, binThreshold, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-        print('b')
 
         # Find the largest contour to avoid noise, may be removed depending on performance cost, as most noise can be
         # removed using a clean background
@@ -125,7 +163,7 @@ while camera.isOpened():
         invertedThresh = cv2.threshold(thresh, 0, 255, cv2.THRESH_BINARY_INV)[1]
 
         # Distance transform creates a map where the pixels furthest away from an edge have a larger value
-        dt, labelsw, labelsb = bwdist(thresh, cv2.DIST_C, cv2.DIST_MASK_3)  # wtb, btw
+        dt, labelsw, labelsb = bwdist(thresh, cv2.DIST_L2, cv2.DIST_MASK_3)  # wtb, btw
         cv2.normalize(dt, dt, 0, 1.0, cv2.NORM_MINMAX)
 
         # Select the furthest pixel as the center of the palm
@@ -158,8 +196,53 @@ while camera.isOpened():
         for i, point in enumerate(maskPoints):
             palmContour.append([point[1], point[0]])
 
+        wristLine = []
+        mxDist = 0
+        n = len(maskPoints)
+        for i, point in enumerate(maskPoints):
+            pDist = euDist(maskPoints[i], maskPoints[(i + 1) % n])
+            if pDist > mxDist:
+                wristLine = [maskPoints[i], maskPoints[(i + 1) % n]]
+                mxDist = pDist
+
+        # Calculate angle of wrist line
+        if len(wristLine) > 0:
+            # Rotates wrist and cuts off below the wrist line
+            wristAngle = -angleCalc(wristLine[0], wristLine[1])
+            wristAngle = 5 * round(wristAngle/5)
+
+            rotated = imutils.rotate_bound(thresh, wristAngle)
+            wristRotated = rotate_points(wristLine, thresh.shape[1], thresh.shape[0], wristAngle) #takes y,x outputs y,x
+            wristYRotated = wristRotated[0][0]
+            cv2.line(rotated, (wristRotated[0][1], wristRotated[0][0]), (wristRotated[1][1],wristRotated[1][0]), 0, 2)
+            cv2.rectangle(rotated, (0, wristYRotated), (rotated.shape[1], rotated.shape[0]), 0, -1)
+
+            handSegmented = imutils.rotate_bound(rotated, -wristAngle)
+            xs = handSegmented.shape[1] // 2 - thresh.shape[1] // 2
+            xe = handSegmented.shape[1] // 2 + thresh.shape[1] // 2
+            ys = handSegmented.shape[0] // 2 - thresh.shape[0] // 2
+            ye = handSegmented.shape[0] // 2 + thresh.shape[0] // 2
+            handSegmented = handSegmented[ys:ye, xs:xe]
+
+            cv2.imshow("r", handSegmented)
+
+            # handContours, hierarchy = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+            # handContours = sorted(handContours, key=lambda x: cv2.contourArea(x))
+            # if len(handContours) > 0:
+            #     hcx, hcy, hcw, hch = cv2.boundingRect(handContours[-1])
+            #     handROI = thresh[hcy:hcy + hch, hcx:hcx + hcw]
+            #     product = imutils.rotate_bound(handROI, 30)
+
+                #Ben's function that does something
+
+
+        post = time.clock()
+        print("exec", post-pre)
+        # Draw wrist line and palm mask
         if len(maskPoints) > 0:
             cv2.drawContours(drawnImg, [np.array(palmContour)], 0, (255, 0, 0), 2)
+            cv2.line(drawnImg, (wristLine[0][1], wristLine[0][0]), (wristLine[1][1], wristLine[1][0]), (0, 0, 255), 2)
+
         cv2.imshow('drawn', drawnImg)
 
     cv2.rectangle(frame, (int((1 - xBound) * frame.shape[1]), 0),
