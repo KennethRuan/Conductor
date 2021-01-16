@@ -1,4 +1,4 @@
-#orz ronald
+# orz ronald
 import keyboard
 import pyautogui
 import sys
@@ -6,23 +6,36 @@ import numpy
 
 prevX = 0
 prevY = 0
-
-count = 0
+missedX = 0
+missedY = 0
+check = False
 
 
 def mouseMovement(curX, curY, command):
-    global prevX, prevY, count
-    if abs(numpy.sqrt(pow(prevX - curX, 2) + pow(prevY - curY, 2)) > 10):
+    global prevX, prevY, missedX, missedY, check
+    # code to exit when a key pressed (can make better)
+    if keyboard.is_pressed('z'):
+        print("i got here")
+        sys.exit()
+    if abs(numpy.sqrt(pow(prevX - curX, 2) + pow(prevY - curY, 2)) > 25):
         pyautogui.moveTo(curX, curY, duration=0.5)
         print(pyautogui.position())
-        count = 0
-    if command=='l':
-        pyautogui.mouseDown(button='left') 
-    elif command=='r':
-        pyautogui.mouseDown(button='right') 
-    elif command=='n':
+    elif abs(numpy.sqrt(pow(missedX - curX, 2) + pow(missedY - curY, 2)) > 25) and check == True:
+        pyautogui.moveTo(curX, curY, duration=0.5)
+        print(pyautogui.position())
+        check = False
+    else:
+        check = True
+        missedX = curX
+        missedY = curY
+
+    if command == 'l':
+        pyautogui.mouseDown(button='left')
+    elif command == 'r':
+        pyautogui.mouseDown(button='right')
+    elif command == 'n':
         pyautogui.mouseUp()
-    
+
     prevX = curX
     prevY = curY
     return
