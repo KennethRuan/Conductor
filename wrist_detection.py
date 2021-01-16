@@ -1,13 +1,12 @@
 import imutils
 
-
 def crop_wrist(image):
     # assume that image is oriented vertically
     # height > width
     height, width = image.shape
     if width > height:
-        imutils.rotate_bound(image, -90)
-    height, width = width, height
+        image = imutils.rotate_bound(image, -90)
+        height, width = width, height
 
     sweep = [0] * height
     for i in range(height):
@@ -34,10 +33,14 @@ def crop_wrist(image):
             valley = sweep[i]
             v_idx = i
 
-    slope_l = (peak_left - valley) / (v_idx - peak_l_idx)
-    slope_r = (peak_right - valley) / (peak_r_idx - v_idx)
+    a = max((v_idx - peak_l_idx), 1)
+    b = max((peak_r_idx - v_idx), 1)
+    slope_l = (peak_left - valley) / a
+    slope_r = (peak_right - valley) / b
 
     if slope_l > slope_r:
         return image[:v_idx]
     else:
-        return image[v_idx:]
+        res = image[v_idx:]
+        res = imutils.rotate_bound(res, 180)
+        return res

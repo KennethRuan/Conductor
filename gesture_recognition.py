@@ -1,6 +1,8 @@
 import cv2
 import numpy as np
 import imutils
+from wrist_detection import crop_wrist
+import time
 
 # Parameters
 binThreshold = 60
@@ -90,14 +92,12 @@ while camera.isOpened():
               int((1 - xBound) * frame.shape[1]):]
 
         cv2.imshow('filtered', img)
-
         # Grayscale and blurring
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         blur = cv2.GaussianBlur(gray, (gBlur, gBlur), 0)
 
         # Using a threshold to determine how 'blurry' an edge can be and included
         ret, thresh = cv2.threshold(blur, binThreshold, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-        invertedThresh = cv2.threshold(thresh, 0, 255, cv2.THRESH_BINARY_INV)[1]
 
         # Find the largest contour to avoid noise, may be removed depending on performance cost, as most noise can be
         # removed using a clean background
@@ -113,16 +113,13 @@ while camera.isOpened():
             mask = np.zeros(gray.shape, dtype="uint8")
             cv2.drawContours(mask, [c], -1, 255, -1)
             imageROI = thresh[y:y + h, x:x + w]
-            maskROI = mask[y:y + h, x:x + w]
-            imageROI = cv2.bitwise_and(imageROI, imageROI,
-                                       mask=maskROI)
 
             idealAngle = 0
             minArea = float("inf")
-            for angle in np.arange(15, 375, 15):
+            for angle in np.arange(0, 360, 15):
                 if angle in [90, 180, 270]:
                     continue
-                rotated = imutils.rotate_bound(maskROI, angle)
+                rotated = imutils.rotate_bound(imageROI, angle)
                 roicontours, hierarchy = cv2.findContours(rotated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
                 if len(roicontours) > 0:
                     roicontours = sorted(roicontours, key=lambda x: cv2.contourArea(x))
@@ -137,10 +134,10 @@ while camera.isOpened():
             (x, y, w, h) = cv2.boundingRect(mbbcontours[-1])
             mbb = mbb[y:y + h, x:x + w]
             cv2.imshow("ROI", mbb)
+            thresh = crop_wrist(mbb)
+            # cv2.imshow("cropped", thresh)
 
-            # Ben's Method
-            # Returns cropped hand and the position of the found bounding box to remap the transforms
-            # Also returns wrist line
+        invertedThresh = cv2.threshold(thresh, 0, 255, cv2.THRESH_BINARY_INV)[1]
 
         # Distance transform creates a map where the pixels furthest away from an edge have a larger value
         dt, labelsw, labelsb = bwdist(thresh, cv2.DIST_C, cv2.DIST_MASK_3)  # wtb, btw
