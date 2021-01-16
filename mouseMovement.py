@@ -1,37 +1,61 @@
-#orz ronald
+# orz ronald
 import keyboard
 import pyautogui
 import sys
 import numpy
 
-print(pyautogui.size())
 prevX = 0
 prevY = 0
-i = 0
-j = 0
-count = 0
-a = [[100, 200], [10, 30], [11, 34], [11, 35], [11, 36], [11, 37], [11, 38], [11, 39], [11, 40], [11, 41], [11, 42], [11, 43], [11, 44], [11, 45], [11, 46], [11, 47], [11, 48], [11, 49], [11, 50], [11, 51], [11, 52], [300, 600], [601, 100], [1000, 10], [1000, 9]]
+missedX = 0
+missedY = 0
+check = False
 
 
-def mouseMovement(curX, curY):
-    global prevX, prevY, count
-    if abs(numpy.sqrt(pow(prevX - curX, 2) + pow(prevY - curY, 2)) > 10):
-        pyautogui.moveTo(curX, curY, duration=1)
+def mouseMovement(curX, curY, command):
+    global prevX, prevY, missedX, missedY, check
+    # code to exit when a key pressed (can make better)
+    if keyboard.is_pressed('z'):
+        print("i got here")
+        sys.exit()
+    if abs(numpy.sqrt(pow(prevX - curX, 2) + pow(prevY - curY, 2)) > 25):
+        pyautogui.moveTo(curX, curY, duration=0.5)
         print(pyautogui.position())
-        count = 0
-    if count == 19:
-        pyautogui.moveTo(curX, curY, duration=1)
+    elif abs(numpy.sqrt(pow(missedX - curX, 2) + pow(missedY - curY, 2)) > 25) and check == True:
+        pyautogui.moveTo(curX, curY, duration=0.5)
         print(pyautogui.position())
-        count = 0
+        check = False
+    else:
+        check = True
+        missedX = curX
+        missedY = curY
+
+    if command == 'l':
+        pyautogui.mouseDown(button='left')
+    elif command == 'r':
+        pyautogui.mouseDown(button='right')
+    elif command == 'n':
+        pyautogui.mouseUp()
+
     prevX = curX
     prevY = curY
-    count += 1
     return
 
 
 while True:
-    mouseMovement(a[i][0], a[i][1])
-    i += 1
-    if keyboard.is_pressed('q'):
-        print("i got here")
+    print("command list: \n \'q\' to exit \n \'p\' to get current mouse position")
+    print(" \'m\' to enter coordinates to move mouse to")
+    command = input("choose a command: \n")
+    if command == 'q':
+        print("exiting")
         sys.exit()
+    if command == 'p':
+        print(pyautogui.position())
+    if command == 'm':
+        command = input(" \'l\' for left click \n \'r\' for right click \n \'n\' for none \n")
+        print("enter coordinates to move to (on separate lines pls): \n")
+        tryX = int(input())
+        tryY = int(input())
+        prevX = pyautogui.position()[0]
+        prevY = pyautogui.position()[1]
+        mouseMovement(tryX, tryY, command)
+    print("\n \n")
