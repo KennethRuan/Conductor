@@ -1,4 +1,6 @@
 import imutils
+import cv2
+import time
 
 def crop_wrist(image):
     # assume that image is oriented vertically
@@ -7,12 +9,14 @@ def crop_wrist(image):
     if width > height:
         image = imutils.rotate_bound(image, -90)
         height, width = width, height
-
+    # print(image.shape)
+    # pre = time.clock()
     sweep = [0] * height
     for i in range(height):
-        for j in range(width):
-            sweep[i] += image[i][j] != 0
-    b = height // 2
+        sweep[i] = cv2.countNonZero(image[i])
+    b = int(height * 0.7)
+    # post = time.clock()
+    # print("Exec time:", post-pre)
 
     peak_left, peak_l_idx = 0, b
     peak_right, peak_r_idx = 0, b + 1
@@ -38,7 +42,7 @@ def crop_wrist(image):
     slope_l = (peak_left - valley) / a
     slope_r = (peak_right - valley) / b
 
-    if slope_l > slope_r:
+    if slope_l < slope_r:
         return image[:v_idx]
     else:
         res = image[v_idx:]

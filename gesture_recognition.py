@@ -9,6 +9,9 @@ binThreshold = 60
 bgSubThreshold = 30
 xBound = 0.6
 yBound = 0.9
+sxBoundL = 0.6
+sxBoundR = 0.9
+syBound = 0.45
 gBlur = 21
 
 # Global Variables
@@ -37,6 +40,7 @@ def minPalmBound(img, center):
 
     numSamplePoints = 48
     mask = [[] for _ in range(numSamplePoints)]
+    outOfBounds = [False for _ in range(numSamplePoints)]
     sampleFound = False
     r = 0
     inner = 0
@@ -49,6 +53,10 @@ def minPalmBound(img, center):
             y = int(np.sin(a * np.pi/180) * r + oy)
 
             if not (0 <= x < img.shape[1] and 0 <= y < img.shape[0]):
+                outOfBounds[idx] = True
+                if all(outOfBounds):
+                    sampleFound = True
+                    break
                 continue
 
             if img[y, x] == 0:
@@ -90,7 +98,7 @@ while camera.isOpened():
         img = removeBackground(frame)
         img = img[:int(yBound * frame.shape[0]),
               int((1 - xBound) * frame.shape[1]):]
-
+        print('a')
         cv2.imshow('filtered', img)
         # Grayscale and blurring
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -98,6 +106,7 @@ while camera.isOpened():
 
         # Using a threshold to determine how 'blurry' an edge can be and included
         ret, thresh = cv2.threshold(blur, binThreshold, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        print('b')
 
         # Find the largest contour to avoid noise, may be removed depending on performance cost, as most noise can be
         # removed using a clean background
@@ -110,33 +119,9 @@ while camera.isOpened():
 
             c = contours[-1]
             (x, y, w, h) = cv2.boundingRect(c)
-            mask = np.zeros(gray.shape, dtype="uint8")
-            cv2.drawContours(mask, [c], -1, 255, -1)
-            imageROI = thresh[y:y + h, x:x + w]
-
-            idealAngle = 0
-            minArea = float("inf")
-            for angle in np.arange(0, 360, 15):
-                if angle in [90, 180, 270]:
-                    continue
-                rotated = imutils.rotate_bound(imageROI, angle)
-                roicontours, hierarchy = cv2.findContours(rotated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-                if len(roicontours) > 0:
-                    roicontours = sorted(roicontours, key=lambda x: cv2.contourArea(x))
-                    (mbbx, mbby, mbbw, mbbh) = cv2.boundingRect(roicontours[-1])
-                    if mbbw * mbbh < minArea:
-                        minArea = mbbw * mbbh
-                        idealAngle = angle
-
-            mbb = imutils.rotate_bound(imageROI, idealAngle)
-            mbbcontours, hierarchy = cv2.findContours(mbb, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-            mbbcontours = sorted(mbbcontours, key=lambda x: cv2.contourArea(x))
-            (x, y, w, h) = cv2.boundingRect(mbbcontours[-1])
-            mbb = mbb[y:y + h, x:x + w]
-            cv2.imshow("ROI", mbb)
-            thresh = crop_wrist(mbb)
-            # cv2.imshow("cropped", thresh)
-
+            # mask = np.zeros(gray.shape, dtype="uint8")
+            if y < int(syBound*frame.shape[0]):
+                thresh = thresh[:int(syBound*frame.shape[0]+y)]
         invertedThresh = cv2.threshold(thresh, 0, 255, cv2.THRESH_BINARY_INV)[1]
 
         # Distance transform creates a map where the pixels furthest away from an edge have a larger value
@@ -179,6 +164,8 @@ while camera.isOpened():
 
     cv2.rectangle(frame, (int((1 - xBound) * frame.shape[1]), 0),
                   (frame.shape[1], int(yBound * frame.shape[0])), (255, 0, 0), 2)
+    cv2.rectangle(frame, (int((1 - sxBoundL) * frame.shape[1]), 0),
+                  (int(frame.shape[1] * sxBoundR), int(syBound * frame.shape[0])), (0, 255, 0), 2)
 
     # Output video feed
     cv2.imshow("original", frame)
