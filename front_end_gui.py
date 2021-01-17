@@ -37,6 +37,7 @@ def startProgram():
     
     gesture_recognition.recognize_gestures()
 
+
 start = tkinter.Button(frame, bg = '#f5cb42', font=('Helvetica', 20), highlightthickness = 0, borderwidth=0, text ="Start", height=2, width=10, command = startProgram)
 start.place(relx=0.5, rely=0.5, anchor="center")
 
