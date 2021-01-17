@@ -50,7 +50,7 @@ def identify_fingers(image, finger_components, x, y):
     for i in range(palm_line - 1, -1, -1):
         finger_ids = np.unique(finger_components[i])
         for cnt, j in enumerate(finger_ids):
-            if cnt > 4:
+            if j > 4:
                 break
             if low[j] == -1:
                 low[j] = i
