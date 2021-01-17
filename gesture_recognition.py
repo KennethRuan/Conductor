@@ -40,8 +40,8 @@ def bwdist(img, metric=cv2.DIST_C, maskSize = cv2.DIST_MASK_3, labelType = cv2.D
     # dist, btw = cv2.distanceTransformWithLabels(img, metric, maskSize, labelType=labelType)
     # _, wtb = cv2.distanceTransformWithLabels(flip, metric, maskSize, labelType=labelType)
     dist = scipy.ndimage.morphology.distance_transform_edt(img, return_distances=True, return_indices=False)
-    btw = scipy.ndimage.morphology.distance_transform_edt(img, return_distances=False, return_indices=True)
-    wtb = scipy.ndimage.morphology.distance_transform_edt(flip, return_distances=False, return_indices=True)
+    btw = scipy.ndimage.morphology.distance_transform_edt(flip, return_distances=False, return_indices=True)
+    wtb = scipy.ndimage.morphology.distance_transform_edt(img, return_distances=False, return_indices=True)
     return dist, wtb, btw
 
 
@@ -143,7 +143,6 @@ camera.set(10, 200)
 while camera.isOpened():
     ret, frame = camera.read()
     frame = cv2.flip(frame, 1)  # Flip frame horizontally
-    pre = time.clock()
     if bgCaptured:
         # Crop the image in the bounding box
         img = removeBackground(frame)
@@ -175,7 +174,10 @@ while camera.isOpened():
 
         # Distance transform creates a map where the pixels furthest away from an edge have a larger value
         dt, labelsw, labelsb = bwdist(thresh, cv2.DIST_L2, cv2.DIST_MASK_3)  # wtb, btw
+
         cv2.normalize(dt, dt, 0, 1.0, cv2.NORM_MINMAX)
+
+        cv2.imshow("dt",dt)
 
         # Select the furthest pixel as the center of the palm
         palmCenter = np.unravel_index(dt.argmax(), dt.shape)
@@ -186,27 +188,21 @@ while camera.isOpened():
         # Begin by finding the minimal bound of the palm
 
         minBoundPoints, radius = minPalmBound(thresh, palmCenter)
-        post = time.clock()
         maskPoints = []
 
-        pre = time.clock()
+
         for mx, my in minBoundPoints:
             if thresh[my, mx] == 0:
-                l = labelsw[my][mx]
-                mask = labelsw == l
-                px = np.dstack(np.where(thresh * mask))
-                if px.size == 0:
+                px = [labelsb[0, my, mx],labelsb[1, my, mx]]
+                if px[0] + px[1] < 0:
                     continue
             else:
-                l = labelsb[my][mx]
-                mask = labelsb == l
-                px = np.dstack(np.where(invertedThresh * mask))
-                if px.size == 0:
+                px = [labelsw[0, my, mx], labelsw[1, my, mx]]
+                if px[0] + px[1] < 0:
                     continue
-            maskPoints.append(px[0][0])
-        post = time.clock()
-        print(post - pre)
+            maskPoints.append(px)
 
+        # print(maskPoints)
         palmContour = []
         for i, point in enumerate(maskPoints):
             palmContour.append([point[1], point[0]])
@@ -219,7 +215,6 @@ while camera.isOpened():
             if pDist > mxDist:
                 wristLine = [maskPoints[i], maskPoints[(i + 1) % n]]
                 mxDist = pDist
-
         # Calculate angle of wrist line
         if len(wristLine) > 0:
             # Rotates wrist and cuts off below the wrist line
@@ -318,9 +313,7 @@ while camera.isOpened():
                 outputX = fingerROI.shape[1]
                 pre = time.clock()
                 output = identify_fingers(thumblessROI, fingerROI, palmCenter[1]-hxs, palmCenter[0]-hys)
-                post = time.clock()
 
-                print("exec time", post-pre)
                 # fingerROI = imutils.rotate_bound(fingerROI, -wristAngle)
                 # thumblessROI = imutils.rotate_bound(thumblessROI, -wristAngle)
 
@@ -342,8 +335,8 @@ while camera.isOpened():
                     cv2.circle(drawnImg, (output[i][0], output[i][1]), 4, (0,255,0), 2)
 
                 for i in range(len(output)):
-                    output[i] = [int(round((output[i][0]/((sxBoundR-sxBoundL)*frame.shape[1]))*windowW)),
-                                 int(round(output[i][1]/(syBound*frame.shape[0])*windowH)), output[i][2]]
+                    output[i] = [int(round(output[i][0]/((sxBoundR-sxBoundL)*frame.shape[1])*windowW)),
+                                 int(round((output[i][1]/(syBound*frame.shape[0]))*windowH)), output[i][2]]
                     print(output[i])
 
                 # for i in range(len(output)):
@@ -357,12 +350,12 @@ while camera.isOpened():
                 except SystemExit:
                     pyautogui.mouseUp()
 
+
                 # print(output)
 
             # cv2.waitKey(0)
 
         post = time.clock()
-        # print("exec", post-pre)
         # Draw wrist line and palm mask
         if len(maskPoints) > 0:
             cv2.drawContours(drawnImg, [np.array(palmContour)], 0, (255, 0, 0), 2)

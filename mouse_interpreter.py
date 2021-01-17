@@ -21,6 +21,8 @@ def interpret_finger_state(table, img):
 
     if isHeld(finger_map[pinky]):
         command = 'l'
+    elif isHeld(finger_map[middle]):
+        command = 'r'
     else:
         command = 'n'
 
