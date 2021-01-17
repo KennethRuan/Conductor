@@ -3,11 +3,18 @@ import cv2
 import numpy as np
 
 
+def first_occ(arr, val):
+    for i in range(len(arr)):
+        if arr[i] == val:
+            return i
+    return -1
+
+
 def intersect(x1, y1, x2, y2, palm_line):
     # (x1, y1) is finger, (x2, y2) is palm
     width = x2 - x1
     height = y1 - y2
-    return (y1 - palm_line) * width / height
+    return x1 + (y1 - palm_line) * width // height
 
 
 def count_segments(image, row):
@@ -21,22 +28,23 @@ def identify_fingers(image, finger_components, x, y):
     palm_line = height
     start, end = -1, -1
     for i in range(height - 1, -1, -1):
-        components = cv2.connectedComponents(image[i])
-        if len(np.unique(components)) >= 2:
+        garbage, components = cv2.connectedComponents(image[i])
+
+        if len(np.unique(components)) >= 3:
             palm_line = i
             for j in range(len(components)):
-                if components[j] != 0:
+                if components[j][0] != 0:
                     if start == -1:
                         start = j
                     end = j
             break
-    finger_components = cv2.connectedComponents(finger_components)
+    cnt, finger_components = cv2.connectedComponents(finger_components)
 
     low = [-1] * 5
     high = [-1] * 5
     ret = []
 
-    for i in range(height - 1, -1, -1):
+    for i in range(palm_line - 1, -1, -1):
         finger_ids = np.unique(finger_components[i])
         for j in finger_ids:
             if low[j] == -1:
@@ -45,11 +53,30 @@ def identify_fingers(image, finger_components, x, y):
 
     len_palm = end - start
 
-    for i in range(5):
+    for i in range(1, 5):
         if low[i] != -1:
-            x_val = image[low[i]].index(i)
+            x_val = first_occ(finger_components[low[i]], i)
             y_val = low[i]
-            finger_type = intersect(x_val, y_val, x, y, palm_line) * 4 // len_palm
-            ret.append([image[high[i]].index(i), high[i], finger_type])
+            finger_type = (intersect(x_val, y_val, x, y, palm_line) - start) * 4 // len_palm
+
+            args = [first_occ(finger_components[high[i]], i), high[i], finger_type]
+            ret.append(args)
+
+    ret.sort(key = lambda val: val[0])
+
+    finger_count = len(ret)
+
+    for i in range(len(ret)):
+        if ret[i][0] < 0:
+            ret[i][0] = 0
+
+        if ret[i][0] > 3:
+            ret[i][0] = 3
+
+        if ret[i][0] > i - finger_count + 4:
+            ret[i][0] = i - finger_count + 4 # max ID such that there are no overlaps (hard code case)
+
+        if ret[i] == ret[i - 1]:
+            ret[i] = ret[i - 1] + 1
 
     return ret
