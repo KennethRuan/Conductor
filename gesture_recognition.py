@@ -41,8 +41,8 @@ def recognize_gestures():
         # dist, btw = cv2.distanceTransformWithLabels(img, metric, maskSize, labelType=labelType)
         # _, wtb = cv2.distanceTransformWithLabels(flip, metric, maskSize, labelType=labelType)
         dist = scipy.ndimage.morphology.distance_transform_edt(img, return_distances=True, return_indices=False)
-        btw = scipy.ndimage.morphology.distance_transform_edt(img, return_distances=False, return_indices=True)
-        wtb = scipy.ndimage.morphology.distance_transform_edt(flip, return_distances=False, return_indices=True)
+        btw = scipy.ndimage.morphology.distance_transform_edt(flip, return_distances=False, return_indices=True)
+        wtb = scipy.ndimage.morphology.distance_transform_edt(img, return_distances=False, return_indices=True)
         return dist, wtb, btw
 
 
@@ -138,19 +138,17 @@ def recognize_gestures():
             new_bb[i] = (int(round(calculated[0])), int(round(calculated[1])))
         return new_bb
 
-    cameraUsed = 0
-    camera = cv2.VideoCapture(cameraUsed, cv2.CAP_DSHOW)
+    camera = cv2.VideoCapture(0, cv2.CAP_DSHOW)
     camera.set(10, 200)
 
     while camera.isOpened():
         ret, frame = camera.read()
         frame = cv2.flip(frame, 1)  # Flip frame horizontally
-        pre = time.clock()
         if bgCaptured:
             # Crop the image in the bounding box
             img = removeBackground(frame)
             img = img[:int(yBound * frame.shape[0]),
-                    int(xBound * frame.shape[1]):]
+                int(xBound * frame.shape[1]):]
             cv2.imshow('filtered', img)
             # Grayscale and blurring
             gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -177,7 +175,10 @@ def recognize_gestures():
 
             # Distance transform creates a map where the pixels furthest away from an edge have a larger value
             dt, labelsw, labelsb = bwdist(thresh, cv2.DIST_L2, cv2.DIST_MASK_3)  # wtb, btw
+
             cv2.normalize(dt, dt, 0, 1.0, cv2.NORM_MINMAX)
+
+            cv2.imshow("dt",dt)
 
             # Select the furthest pixel as the center of the palm
             palmCenter = np.unravel_index(dt.argmax(), dt.shape)
@@ -188,27 +189,21 @@ def recognize_gestures():
             # Begin by finding the minimal bound of the palm
 
             minBoundPoints, radius = minPalmBound(thresh, palmCenter)
-            post = time.clock()
             maskPoints = []
 
-            pre = time.clock()
+
             for mx, my in minBoundPoints:
                 if thresh[my, mx] == 0:
-                    l = labelsw[my][mx]
-                    mask = labelsw == l
-                    px = np.dstack(np.where(thresh * mask))
-                    if px.size == 0:
+                    px = [labelsb[0, my, mx],labelsb[1, my, mx]]
+                    if px[0] + px[1] < 0:
                         continue
                 else:
-                    l = labelsb[my][mx]
-                    mask = labelsb == l
-                    px = np.dstack(np.where(invertedThresh * mask))
-                    if px.size == 0:
+                    px = [labelsw[0, my, mx], labelsw[1, my, mx]]
+                    if px[0] + px[1] < 0:
                         continue
-                maskPoints.append(px[0][0])
-            post = time.clock()
-            print(post - pre)
+                maskPoints.append(px)
 
+            # print(maskPoints)
             palmContour = []
             for i, point in enumerate(maskPoints):
                 palmContour.append([point[1], point[0]])
@@ -221,7 +216,6 @@ def recognize_gestures():
                 if pDist > mxDist:
                     wristLine = [maskPoints[i], maskPoints[(i + 1) % n]]
                     mxDist = pDist
-
             # Calculate angle of wrist line
             if len(wristLine) > 0:
                 # Rotates wrist and cuts off below the wrist line
@@ -320,9 +314,7 @@ def recognize_gestures():
                     outputX = fingerROI.shape[1]
                     pre = time.clock()
                     output = identify_fingers(thumblessROI, fingerROI, palmCenter[1]-hxs, palmCenter[0]-hys)
-                    post = time.clock()
 
-                    print("exec time", post-pre)
                     # fingerROI = imutils.rotate_bound(fingerROI, -wristAngle)
                     # thumblessROI = imutils.rotate_bound(thumblessROI, -wristAngle)
 
@@ -344,8 +336,8 @@ def recognize_gestures():
                         cv2.circle(drawnImg, (output[i][0], output[i][1]), 4, (0,255,0), 2)
 
                     for i in range(len(output)):
-                        output[i] = [int(round((output[i][0]/((sxBoundR-sxBoundL)*frame.shape[1]))*windowW)),
-                                        int(round(output[i][1]/(syBound*frame.shape[0])*windowH)), output[i][2]]
+                        output[i] = [int(round(output[i][0]/((sxBoundR-sxBoundL)*frame.shape[1])*windowW)),
+                                    int(round((output[i][1]/(syBound*frame.shape[0]))*windowH)), output[i][2]]
                         print(output[i])
 
                     # for i in range(len(output)):
@@ -359,12 +351,12 @@ def recognize_gestures():
                     except SystemExit:
                         pyautogui.mouseUp()
 
+
                     # print(output)
 
                 # cv2.waitKey(0)
 
             post = time.clock()
-            # print("exec", post-pre)
             # Draw wrist line and palm mask
             if len(maskPoints) > 0:
                 cv2.drawContours(drawnImg, [np.array(palmContour)], 0, (255, 0, 0), 2)
@@ -373,9 +365,9 @@ def recognize_gestures():
             cv2.imshow('drawn', drawnImg)
 
         cv2.rectangle(frame, (int(xBound * frame.shape[1]), 0),
-                        (frame.shape[1], int(yBound * frame.shape[0])), (255, 0, 0), 2)
+                    (frame.shape[1], int(yBound * frame.shape[0])), (255, 0, 0), 2)
         cv2.rectangle(frame, (int(sxBoundL * frame.shape[1]), 0),
-                        (int(frame.shape[1] * sxBoundR), int(syBound * frame.shape[0])), (0, 255, 0), 2)
+                    (int(frame.shape[1] * sxBoundR), int(syBound * frame.shape[0])), (0, 255, 0), 2)
 
         # Output video feed
         cv2.imshow("original", frame)
@@ -385,11 +377,4 @@ def recognize_gestures():
             bgSubtractor = cv2.createBackgroundSubtractorMOG2(0, bgSubThreshold)
             bgCaptured = True
             print('Background captured')
-        if k == ord('s'):
-            if cameraUsed == 0:
-                cameraUsed = 1
-            elif cameraUsed == 1:
-                cameraUsed = 0
-            camera = cv2.VideoCapture(cameraUsed, cv2.CAP_DSHOW)
-            camera.set(10, 200)
 
