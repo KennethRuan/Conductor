@@ -48,8 +48,10 @@ def mouseMovement(curX, curY, command):
         if command != prevRegisteredCmd:
             if command == 'l':
                 mouse.click('left')
-            # elif command == 'n':
-            #    pyautogui.mouseUp()
+            elif command == 'u':
+                mouse.wheel(5)
+            elif command == 'd':
+                mouse.wheel(-5)
         prevRegisteredCmd = command
         cmdCount = 0
     post = time.clock()

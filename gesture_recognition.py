@@ -305,6 +305,31 @@ def recognize_gestures():
                     fingerROI = fingerMask[hcy:hcy + hch, hcx:hcx + hcw]
                     thumblessROI = thumblessMask[hcy:hcy + hch, hcx:hcx + hcw]
 
+                    counter, hierarchy = cv2.findContours(thumblessMask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+                    counter = sorted(counter, key=lambda x: cv2.contourArea(x))
+                    counter = counter[-1]
+                    hull = cv2.convexHull(counter, returnPoints=False)
+                    defects = cv2.convexityDefects(counter, hull)
+
+                    # print(defects)
+
+                    cnt = 0
+                    if defects is not None:
+                        cnt = 0
+                        for i in range(defects.shape[0]):  # calculate the angle
+                            s, e, f, d = defects[i][0]
+                            start = tuple(counter[s][0])
+                            end = tuple(counter[e][0])
+                            far = tuple(counter[f][0])
+                            a = np.sqrt((end[0] - start[0]) ** 2 + (end[1] - start[1]) ** 2)
+                            b = np.sqrt((far[0] - start[0]) ** 2 + (far[1] - start[1]) ** 2)
+                            c = np.sqrt((end[0] - far[0]) ** 2 + (end[1] - far[1]) ** 2)
+                            angle = np.arccos((b ** 2 + c ** 2 - a ** 2) / (2 * b * c))  # cosine theorem
+                            if angle <= np.pi / 2:  # angle less than 90 degree, treat as fingers
+                                cnt += 1
+                        if cnt > 0:
+                            cnt = cnt + 1
+
                     # fingerROI = imutils.rotate_bound(fingerROI, wristAngle)
                     # thumblessROI = imutils.rotate_bound(thumblessROI, wristAngle)
 
@@ -339,13 +364,13 @@ def recognize_gestures():
                     for i in range(len(output)):
                         output[i] = [int(round(output[i][0]/((sxBoundR-sxBoundL)*frame.shape[1])*windowW)),
                                     int(round((output[i][1]/(syBound*frame.shape[0]))*windowH)), output[i][2]]
-                        print(output[i])
+                        # print(output[i])
 
                     # for i in range(len(output)):
                     #     height, width = drawnImg.shape
                     #     output[i][0] = output[i][0] * 1080 // height
                     try:
-                        interpret_finger_state(output, drawnImg)
+                        interpret_finger_state(output, drawnImg, cnt)
                     except pyautogui.FailSafeException:
                         pyautogui.mouseUp()
                         sys.exit()
