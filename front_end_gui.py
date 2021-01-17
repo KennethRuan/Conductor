@@ -1,5 +1,5 @@
 import tkinter
-import pyHook
+# import pyHook
 import gesture_recognition
 
 #window setup
@@ -42,14 +42,14 @@ start = tkinter.Button(frame, bg = '#f5cb42', font=('Helvetica', 20), highlightt
 start.place(relx=0.5, rely=0.5, anchor="center")
 
 #exit program key
-def OnKeyboardEvent(event):
-    print("keyboard pressed")
-    if (chr(event.Ascii)=='Q' or chr(event.Ascii)=='q'):
-        print("quit program")
-        quit()
-    return True
-hm = pyHook.HookManager()
-hm.KeyDown = OnKeyboardEvent
-hm.HookKeyboard()
+# def OnKeyboardEvent(event):
+#     print("keyboard pressed")
+#     if (chr(event.Ascii)=='Q' or chr(event.Ascii)=='q'):
+#         print("quit program")
+#         quit()
+#     return True
+# hm = pyHook.HookManager()
+# hm.KeyDown = OnKeyboardEvent
+# hm.HookKeyboard()
 
 window.mainloop()
