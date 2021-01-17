@@ -138,7 +138,8 @@ def recognize_gestures():
             new_bb[i] = (int(round(calculated[0])), int(round(calculated[1])))
         return new_bb
 
-    camera = cv2.VideoCapture(1, cv2.CAP_DSHOW)
+    cameraUsed = 0
+    camera = cv2.VideoCapture(cameraUsed, cv2.CAP_DSHOW)
     camera.set(10, 200)
 
     while camera.isOpened():
@@ -384,4 +385,11 @@ def recognize_gestures():
             bgSubtractor = cv2.createBackgroundSubtractorMOG2(0, bgSubThreshold)
             bgCaptured = True
             print('Background captured')
+        if k == ord('s'):
+            if cameraUsed == 0:
+                cameraUsed = 1
+            elif cameraUsed == 1:
+                cameraUsed = 0
+            camera = cv2.VideoCapture(cameraUsed, cv2.CAP_DSHOW)
+            camera.set(10, 200)
 
