@@ -1,6 +1,8 @@
 import cv2
 import numpy as np
 import imutils
+
+from mouse_interpreter import interpret_finger_state
 from wrist_detection import crop_wrist
 from finger_segmentation import identify_fingers
 import time
@@ -328,7 +330,11 @@ while camera.isOpened():
                     output[i] = [output[i][0] + hcx, output[i][1] + hcy, output[i][2]]
                     cv2.circle(drawnImg, (output[i][0], output[i][1]), 4, (0,255,0), 2)
 
-                # print(output)
+                # for i in range(len(output)):
+                #     height, width = drawnImg.shape
+                #     output[i][0] = output[i][0] * 1080 // height
+                interpret_finger_state(output, drawnImg)
+                print(output)
 
             # cv2.waitKey(0)
 
