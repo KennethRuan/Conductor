@@ -214,6 +214,7 @@ while camera.isOpened():
             wristAngle = -angleCalc(wristLine[0], wristLine[1])
             wristAngle = 5 * round(wristAngle/5)
 
+            # I need to keep track of what happens with this
             rotated = imutils.rotate_bound(thresh, wristAngle)
             wristRotated = rotate_points(wristLine, thresh.shape[1], thresh.shape[0], wristAngle)  # takes y,x outputs y,x
             wristYRotated = wristRotated[0][0]
@@ -237,14 +238,15 @@ while camera.isOpened():
 
             # cv2.circle(rotated, (rotatedPalmCenter[1], rotatedPalmCenter[0]), 10, (255,255,0), 2)
 
+            #this returns it back to normal?
             handSegmented = imutils.rotate_bound(blurred, -wristAngle)
             thumblessMask = imutils.rotate_bound(thumblessMask, -wristAngle)
-            xs = handSegmented.shape[1] // 2 - thresh.shape[1] // 2
-            xe = handSegmented.shape[1] // 2 + thresh.shape[1] // 2
-            ys = handSegmented.shape[0] // 2 - thresh.shape[0] // 2
-            ye = handSegmented.shape[0] // 2 + thresh.shape[0] // 2
-            handSegmented = handSegmented[ys:ye, xs:xe]
-            thumblessMask = thumblessMask[ys:ye, xs:xe]
+            hxs = handSegmented.shape[1] // 2 - thresh.shape[1] // 2
+            hxe = handSegmented.shape[1] // 2 + thresh.shape[1] // 2
+            hys = handSegmented.shape[0] // 2 - thresh.shape[0] // 2
+            hye = handSegmented.shape[0] // 2 + thresh.shape[0] // 2
+            handSegmented = handSegmented[hys:hye, hxs:hxe]
+            thumblessMask = thumblessMask[hys:hye, hxs:hxe]
 
             # print(wristAngle)
             fingerContours, hierarchy = cv2.findContours(handSegmented, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
@@ -273,8 +275,8 @@ while camera.isOpened():
                     cv2.drawContours(thumblessMask, [c], -1, 0, -1)
                     right = False
             fingerMask = deepcopy(handSegmented)
-            cv2.imshow("f", fingerMask)
-            cv2.imshow("tl", thumblessMask)
+            # cv2.imshow("f", fingerMask)
+            # cv2.imshow("tl", thumblessMask)
 
             blur = cv2.GaussianBlur(fingerMask, (gBlur, gBlur), 0)
             ret, fingerMask = cv2.threshold(blur, binThreshold, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
@@ -290,43 +292,48 @@ while camera.isOpened():
             handContours = sorted(handContours, key=lambda x: cv2.contourArea(x))
 
             if len(handContours) > 0:
+                # this should be the key, the output is rotated back to og thresh size at this point
                 hcx, hcy, hcw, hch = cv2.boundingRect(handContours[-1])
                 fingerROI = fingerMask[hcy:hcy + hch, hcx:hcx + hcw]
                 thumblessROI = thumblessMask[hcy:hcy + hch, hcx:hcx + hcw]
 
-                fingerROI = imutils.rotate_bound(fingerROI, wristAngle)
-                thumblessROI = imutils.rotate_bound(thumblessROI, wristAngle)
+                # fingerROI = imutils.rotate_bound(fingerROI, wristAngle)
+                # thumblessROI = imutils.rotate_bound(thumblessROI, wristAngle)
+
+                # cv2.imshow("pp", fingerROI)
+                # cv2.imshow("pp2", thumblessROI)
 
                 outputY = fingerROI.shape[0]
                 outputX = fingerROI.shape[1]
 
-                output = identify_fingers(thumblessROI, fingerROI, palmCenter[1]-xs, palmCenter[0]-ys)
+                output = identify_fingers(thumblessROI, fingerROI, palmCenter[1]-hxs, palmCenter[0]-hys)
 
-                print("After", output)
+                # fingerROI = imutils.rotate_bound(fingerROI, -wristAngle)
+                # thumblessROI = imutils.rotate_bound(thumblessROI, -wristAngle)
 
-                fingerROI = imutils.rotate_bound(fingerROI, -wristAngle)
-                thumblessROI = imutils.rotate_bound(thumblessROI, -wristAngle)
+                # cv2.imshow("wonka", fingerROI)
+                # cv2.imshow("donka", thumblessROI)
 
-                xs = fingerROI.shape[1] // 2 - hcx // 2
-                xe = fingerROI.shape[1] // 2 + hcx // 2
-                ys = fingerROI.shape[0] // 2 - hcy // 2
-                ye = fingerROI.shape[0] // 2 + hcy // 2
+                xs = fingerROI.shape[1] // 2 - hcw // 2
+                xe = fingerROI.shape[1] // 2 + hcw // 2
+                ys = fingerROI.shape[0] // 2 - hch // 2
+                ye = fingerROI.shape[0] // 2 + hch // 2
 
                 fingerROI = fingerROI[ys:ye,xs:xe]
                 thumblessROI = thumblessROI[ys:ye,xs:xe]
 
                 for i in range(len(output)):
-                    yx = (output[i][1],output[i][0])
-                    ryx = rotate_points([yx], outputY, outputX, -wristAngle)[0]
-                    output[i] = [ryx[1]-xs, ryx[0]-ys]
-                    cv2.circle(drawnImg, (output[i][1], output[i][0]), 4, (0,255,0), 2)
+                    # ryx = rotate_points([yx], outputY, outputX, -wristAngle)[0]
+                    # print(ryx[1], ryx[0])
+                    output[i] = [output[i][0] + hcx, output[i][1] + hcy, output[i][2]]
+                    cv2.circle(drawnImg, (output[i][0], output[i][1]), 4, (0,255,0), 2)
 
-                print(output)
+                # print(output)
 
-            cv2.waitKey(0)
+            # cv2.waitKey(0)
 
         post = time.clock()
-        print("exec", post-pre)
+        # print("exec", post-pre)
         # Draw wrist line and palm mask
         if len(maskPoints) > 0:
             cv2.drawContours(drawnImg, [np.array(palmContour)], 0, (255, 0, 0), 2)
