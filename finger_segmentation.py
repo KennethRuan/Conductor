@@ -46,7 +46,9 @@ def identify_fingers(image, finger_components, x, y):
 
     for i in range(palm_line - 1, -1, -1):
         finger_ids = np.unique(finger_components[i])
-        for j in finger_ids:
+        for cnt, j in enumerate(finger_ids):
+            if cnt > 4:
+                break
             if low[j] == -1:
                 low[j] = i
             high[j] = i
@@ -63,20 +65,20 @@ def identify_fingers(image, finger_components, x, y):
             ret.append(args)
 
     ret.sort(key = lambda val: val[0])
-
+    print("Before",ret)
     finger_count = len(ret)
 
     for i in range(len(ret)):
-        if ret[i][0] < 0:
-            ret[i][0] = 0
+        if ret[i][2] < 0:
+            ret[i][2] = 0
 
-        if ret[i][0] > 3:
-            ret[i][0] = 3
+        if ret[i][2] > 3:
+            ret[i][2] = 3
 
-        if ret[i][0] > i - finger_count + 4:
-            ret[i][0] = i - finger_count + 4 # max ID such that there are no overlaps (hard code case)
+        if ret[i][2] > i - finger_count + 4:
+            ret[i][2] = i - finger_count + 4  # max ID such that there are no overlaps (hard code case)
 
-        if ret[i] == ret[i - 1]:
-            ret[i] = ret[i - 1] + 1
+        if i != 0 and ret[i][2] == ret[i - 1][2]:
+            ret[i][2] = ret[i - 1][2] + 1
 
     return ret
