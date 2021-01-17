@@ -1,4 +1,3 @@
-# orz ronald
 import keyboard
 import pyautogui
 import sys
