@@ -16,15 +16,18 @@ def interpret_finger_state(table, img):
         finger_map[type][0] = x
         finger_map[type][1] = y
 
-    if not isHeld(finger_map[index]):
-        return
+    finger_count = len(table)
 
-    if isHeld(finger_map[pinky]):
+    command = 'n'
+    if finger_count >= 2:
         command = 'l'
-    elif isHeld(finger_map[middle]):
-        command = 'r'
-    else:
-        command = 'n'
 
-    cv2.circle(img, (finger_map[index][0], finger_map[index][1]), 4, (255, 0, 0), 4)
-    mouseMovement(finger_map[index][0], finger_map[index][1], command)
+    leftmost = 5
+    if finger_count >= 1:
+        for i in range(5):
+            if isHeld(finger_map[i]):
+                leftmost = i
+                break
+
+        cv2.circle(img, (finger_map[leftmost][0], finger_map[leftmost][1]), 4, (255, 0, 0), 4)
+        mouseMovement(finger_map[leftmost][0], finger_map[leftmost][1], command)
