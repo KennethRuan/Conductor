@@ -9,6 +9,8 @@ Our program allows users to control their mouse completely free of any physical 
 ## How We built it
 Using a webcam, image manipulation, and a lot of math, we were able to find and isolate the locations of each finger on the hand. The positions of the fingers, both on the screen and relative to each other, can be used to determine how much the mouse moves on the screen and what action (such as clicking) to perform.
 
+Our program uses novel strategies such as background subtraction in order to ensure an accurate yet fast prediction. The objective of Conductor is to be as accessible as possible, so the program was benchmarked on standard CPUs such as the AMD Ryzen 5 and Intel i5. Utilizing pattern recognition and image manipulation to locate the palm and to segment the wrist and fingers we are able to produce an accurate prediction in 0.02s.
+
 ## Challenges We ran into
 The main challenge that we ran into while creating our program was developing an algorithm to accurately interpret the data we had at hand. Due to our program being runnable using nothing but a webcam, we had to solve various issues such as dealing with image transformations and correctly identifying the palm of the hand, correctly segmenting the fingers into their own separate parts, identifying which fingers are being held up, and many more. We were able to solve these challenges by brainstorming more about the challenge at hand and recognizing the different types of data that may “break” our program, then modifying our algorithm to detect these types of data and correct them using various helper programs, such that they can be correctly analyzed by the rest of our program.
 
