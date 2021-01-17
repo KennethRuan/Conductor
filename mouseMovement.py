@@ -7,11 +7,14 @@ prevX = 0
 prevY = 0
 missedX = 0
 missedY = 0
+cmdCount = 0
+prevCmd = ''
 check = False
+print(pyautogui.size())
 
 
 def mouseMovement(curX, curY, command):
-    global prevX, prevY, missedX, missedY, check
+    global prevX, prevY, missedX, missedY, check, cmdCount, prevCmd
     # code to exit when a key pressed (can make better)
     if keyboard.is_pressed('z'):
         print("i got here")
@@ -28,12 +31,20 @@ def mouseMovement(curX, curY, command):
         missedX = curX
         missedY = curY
 
-    if command == 'l':
-        pyautogui.mouseDown(button='left')
-    elif command == 'r':
-        pyautogui.mouseDown(button='right')
-    elif command == 'n':
-        pyautogui.mouseUp()
+    if command == prevCmd:
+        cmdCount += 1
+    else:
+        prevCmd = command
+        cmdCount = 0
+
+    if cmdCount == 5:
+        if command == 'l':
+            pyautogui.mouseDown(button='left')
+        elif command == 'r':
+            pyautogui.mouseDown(button='right')
+        elif command == 'n':
+            pyautogui.mouseUp()
+        cmdCount = 0
 
     prevX = curX
     prevY = curY
