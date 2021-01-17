@@ -3,6 +3,7 @@ import numpy as np
 import imutils
 from wrist_detection import crop_wrist
 import time
+from copy import deepcopy
 
 # Parameters
 binThreshold = 60
@@ -17,6 +18,7 @@ gBlur = 21
 # Global Variables
 bgSubtractor = None
 bgCaptured = False
+colours = [(255,0,0), (0,255,0), (0,0,255), (255,0,255), (0,255,255), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0)]
 
 
 def removeBackground(frame):
@@ -212,26 +214,85 @@ while camera.isOpened():
             wristAngle = 5 * round(wristAngle/5)
 
             rotated = imutils.rotate_bound(thresh, wristAngle)
-            wristRotated = rotate_points(wristLine, thresh.shape[1], thresh.shape[0], wristAngle) #takes y,x outputs y,x
+            wristRotated = rotate_points(wristLine, thresh.shape[1], thresh.shape[0], wristAngle)  # takes y,x outputs y,x
             wristYRotated = wristRotated[0][0]
             cv2.line(rotated, (wristRotated[0][1], wristRotated[0][0]), (wristRotated[1][1],wristRotated[1][0]), 0, 2)
             cv2.rectangle(rotated, (0, wristYRotated), (rotated.shape[1], rotated.shape[0]), 0, -1)
 
-            handSegmented = imutils.rotate_bound(rotated, -wristAngle)
+            preMaskPoints = []
+            rotatedMaskPoints = rotate_points(maskPoints, thresh.shape[1], thresh.shape[0], wristAngle)
+            rotatedPalmCenter = rotate_points([palmCenter], thresh.shape[1], thresh.shape[0], wristAngle)[0]
+            for i in range(len(rotatedMaskPoints)):
+                preMaskPoints.append([rotatedMaskPoints[i][1], rotatedMaskPoints[i][0]])
+            # print(preMaskPoints)
+            ctrMask = np.array(preMaskPoints).reshape((-1,1,2)).astype(np.int32)
+            cv2.drawContours(rotated, [ctrMask], 0, 0, -1)
+            rotatedCopy = deepcopy(rotated)
+            blur = cv2.GaussianBlur(rotated, (gBlur, gBlur), 0)
+            ret, blurred = cv2.threshold(blur, binThreshold, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+            cv2.drawContours(rotatedCopy, [ctrMask], 0, 255, -1)
+            palmBlurred = cv2.GaussianBlur(rotatedCopy, (gBlur, gBlur), 0)
+            ret, thumblessMask = cv2.threshold(palmBlurred, binThreshold, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+            # cv2.circle(rotated, (rotatedPalmCenter[1], rotatedPalmCenter[0]), 10, (255,255,0), 2)
+
+            handSegmented = imutils.rotate_bound(blurred, -wristAngle)
+            thumblessMask = imutils.rotate_bound(thumblessMask, -wristAngle)
             xs = handSegmented.shape[1] // 2 - thresh.shape[1] // 2
             xe = handSegmented.shape[1] // 2 + thresh.shape[1] // 2
             ys = handSegmented.shape[0] // 2 - thresh.shape[0] // 2
             ye = handSegmented.shape[0] // 2 + thresh.shape[0] // 2
             handSegmented = handSegmented[ys:ye, xs:xe]
+            thumblessMask = thumblessMask[ys:ye, xs:xe]
 
-            cv2.imshow("r", handSegmented)
+            # print(wristAngle)
+            fingerContours, hierarchy = cv2.findContours(handSegmented, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+            # handSegmented = cv2.cvtColor(handSegmented, cv2.COLOR_GRAY2BGR)
+            right = True
+            for i,c in enumerate(fingerContours):
+                # Simple method for bounding box, does not get the mbb, can update in the future
+                if cv2.contourArea(c) <= 600:
+                    print("Cut finger",i,"size",cv2.contourArea(c))
+                    cv2.drawContours(handSegmented, [c], -1, 0, -1)
+                    cv2.drawContours(thumblessMask, [c], -1, 0, -1)
+                    continue
+                bbx, bby, bbw, bbh = cv2.boundingRect(c)
+                M = cv2.moments(c)
+                cX = int(M["m10"] / M["m00"])
+                cY = int(M["m01"] / M["m00"])
+                fingerAngle = angleCalc(rotatedPalmCenter,(cY,cX))+wristAngle  # method takes y,x
+                if 0 <= fingerAngle < 50:
+                    print("Cut finger",i,"angle",fingerAngle)
+                    cv2.drawContours(handSegmented, [c], -1, 0, -1)
+                    cv2.drawContours(thumblessMask, [c], -1, 0, -1)
+                    right = True
+                elif 0 >= fingerAngle > 50:
+                    print("Cut finger",i,"angle",fingerAngle)
+                    cv2.drawContours(handSegmented, [c], -1, 0, -1)
+                    cv2.drawContours(thumblessMask, [c], -1, 0, -1)
+                    right = False
+                # print("Finger", i)
+                # print(fingerAngle)
+                # print(cv2.contourArea(c))
+                # cv2.circle(handSegmented, (cX,cY), 3, colours[i], -1)
+            fingerMask = deepcopy(handSegmented)
+            cv2.imshow("f", fingerMask)
+            cv2.imshow("tl", thumblessMask)
+            cv2.waitKey(0)
 
-            # handContours, hierarchy = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-            # handContours = sorted(handContours, key=lambda x: cv2.contourArea(x))
-            # if len(handContours) > 0:
-            #     hcx, hcy, hcw, hch = cv2.boundingRect(handContours[-1])
-            #     handROI = thresh[hcy:hcy + hch, hcx:hcx + hcw]
-            #     product = imutils.rotate_bound(handROI, 30)
+            # cv2.waitKey(0)
+            # handSegmented = cv2.cvtColor(handSegmented, cv2.COLOR_BGR2GRAY)
+            # ret, handSegmented = cv2.threshold(handSegmented, 60, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+            handContours, hierarchy = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+            handContours = sorted(handContours, key=lambda x: cv2.contourArea(x))
+
+            if len(handContours) > 0:
+                hcx, hcy, hcw, hch = cv2.boundingRect(handContours[-1])
+                handROI = handSegmented[hcy:hcy + hch, hcx:hcx + hcw]
+                product = imutils.rotate_bound(handROI, wristAngle)
+                # cv2.imshow("p", product)
+
 
                 #Ben's function that does something
 
