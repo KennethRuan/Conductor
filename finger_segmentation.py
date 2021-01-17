@@ -24,6 +24,9 @@ def count_segments(image, row):
 def identify_fingers(image, finger_components, x, y):
     # assumes that hand is upright and that the thumb is removed
     # x, y -> palm center
+    # assumes that thumb is on the left
+    # returns an array in the format: [[fingertip1x, fingertip1y, fingertip1type],[finger2tip...]]
+    # finger tip type: 0 = index, 1 = middle, 2 = ring, 3 = pinky
     height, width = image.shape
     palm_line = height
     start, end = -1, -1
