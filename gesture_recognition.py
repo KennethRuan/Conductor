@@ -37,8 +37,11 @@ def removeBackground(frame):
 
 def bwdist(img, metric=cv2.DIST_C, maskSize = cv2.DIST_MASK_3, labelType = cv2.DIST_LABEL_PIXEL):
     flip = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY_INV)[1]
-    dist, btw = cv2.distanceTransformWithLabels(img, metric, maskSize, labelType=labelType)
-    _, wtb = cv2.distanceTransformWithLabels(flip, metric, maskSize, labelType=labelType)
+    # dist, btw = cv2.distanceTransformWithLabels(img, metric, maskSize, labelType=labelType)
+    # _, wtb = cv2.distanceTransformWithLabels(flip, metric, maskSize, labelType=labelType)
+    dist = scipy.ndimage.morphology.distance_transform_edt(img, return_distances=True, return_indices=False)
+    btw = scipy.ndimage.morphology.distance_transform_edt(img, return_distances=False, return_indices=True)
+    wtb = scipy.ndimage.morphology.distance_transform_edt(flip, return_distances=False, return_indices=True)
     return dist, wtb, btw
 
 
