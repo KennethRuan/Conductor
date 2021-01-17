@@ -138,7 +138,7 @@ def recognize_gestures():
             new_bb[i] = (int(round(calculated[0])), int(round(calculated[1])))
         return new_bb
     
-    cameraUsed = 1
+    cameraUsed = 0
     camera = cv2.VideoCapture(cameraUsed, cv2.CAP_DSHOW)
     camera.set(10, 200)
 
@@ -386,3 +386,4 @@ def recognize_gestures():
             print("switch camera")
             camera = cv2.VideoCapture(cameraUsed, cv2.CAP_DSHOW)
             camera.set(10, 200)
+

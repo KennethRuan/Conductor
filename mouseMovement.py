@@ -3,6 +3,7 @@ import pyautogui
 import sys
 import numpy
 import time
+import mouse
 
 prevX = 0
 prevY = 0
@@ -43,13 +44,12 @@ def mouseMovement(curX, curY, command):
         cmdCount = 0
 
     if cmdCount == 2:
-        pyautogui.moveTo(curX, curY, 0.01)
+        mouse.move(curX, curY, absolute=True)
         if command != prevRegisteredCmd:
             if command == 'l':
-                pyautogui.mouseDown(button='left')
-                pyautogui.mouseUp()
-            elif command == 'n':
-                pyautogui.mouseUp()
+                mouse.click('left')
+            # elif command == 'n':
+            #    pyautogui.mouseUp()
         prevRegisteredCmd = command
         cmdCount = 0
     post = time.clock()
