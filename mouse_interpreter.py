@@ -19,7 +19,10 @@ def interpret_finger_state(table, img):
     if not isHeld(finger_map[index]):
         return
 
-    command = 'r' if isHeld(finger_map[ring]) else 'l' if isHeld(finger_map[middle]) else 'n'
+    if isHeld(finger_map[pinky]):
+        command = 'l'
+    else:
+        command = 'n'
 
     cv2.circle(img, (finger_map[index][0], finger_map[index][1]), 4, (255, 0, 0), 4)
     mouseMovement(finger_map[index][0], finger_map[index][1], command)

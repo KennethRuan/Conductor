@@ -1,22 +1,25 @@
 import cv2
 import numpy as np
 import imutils
-
+import sys
 from mouse_interpreter import interpret_finger_state
 from wrist_detection import crop_wrist
 from finger_segmentation import identify_fingers
 import time
+import pyautogui
 from copy import deepcopy
+import scipy.ndimage
 
 # Parameters
 binThreshold = 60
 bgSubThreshold = 30
-xBound = 0.6
+xBound = 0
 yBound = 0.9
-sxBoundL = 0.6
-sxBoundR = 0.9
-syBound = 0.45
+sxBoundL = 0.2
+sxBoundR = 0.8
+syBound = 0.6
 gBlur = 21
+windowW, windowH = pyautogui.size()
 
 # Global Variables
 bgSubtractor = None
@@ -142,7 +145,7 @@ while camera.isOpened():
         # Crop the image in the bounding box
         img = removeBackground(frame)
         img = img[:int(yBound * frame.shape[0]),
-              int((1 - xBound) * frame.shape[1]):]
+              int(xBound * frame.shape[1]):]
         cv2.imshow('filtered', img)
         # Grayscale and blurring
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -178,10 +181,12 @@ while camera.isOpened():
 
         # Calculating palm mask
         # Begin by finding the minimal bound of the palm
-        minBoundPoints, radius = minPalmBound(thresh, palmCenter)
 
+        minBoundPoints, radius = minPalmBound(thresh, palmCenter)
+        post = time.clock()
         maskPoints = []
 
+        pre = time.clock()
         for mx, my in minBoundPoints:
             if thresh[my, mx] == 0:
                 l = labelsw[my][mx]
@@ -196,6 +201,8 @@ while camera.isOpened():
                 if px.size == 0:
                     continue
             maskPoints.append(px[0][0])
+        post = time.clock()
+        print(post - pre)
 
         palmContour = []
         for i, point in enumerate(maskPoints):
@@ -257,7 +264,7 @@ while camera.isOpened():
             for i,c in enumerate(fingerContours):
                 # Simple method for bounding box, does not get the mbb, can update in the future
                 if cv2.contourArea(c) <= 600:
-                    print("Cut finger",i,"size",cv2.contourArea(c))
+                    # print("Cut finger",i,"size",cv2.contourArea(c))
                     cv2.drawContours(handSegmented, [c], -1, 0, -1)
                     cv2.drawContours(thumblessMask, [c], -1, 0, -1)
                     continue
@@ -267,12 +274,12 @@ while camera.isOpened():
                 cY = int(M["m01"] / M["m00"])
                 fingerAngle = angleCalc(rotatedPalmCenter,(cY,cX))+wristAngle  # method takes y,x
                 if 0 <= fingerAngle < 50:
-                    print("Cut finger",i,"angle",fingerAngle)
+                    # print("Cut finger",i,"angle",fingerAngle)
                     cv2.drawContours(handSegmented, [c], -1, 0, -1)
                     cv2.drawContours(thumblessMask, [c], -1, 0, -1)
                     right = True
                 elif 0 >= fingerAngle > 50:
-                    print("Cut finger",i,"angle",fingerAngle)
+                    # print("Cut finger",i,"angle",fingerAngle)
                     cv2.drawContours(handSegmented, [c], -1, 0, -1)
                     cv2.drawContours(thumblessMask, [c], -1, 0, -1)
                     right = False
@@ -292,7 +299,6 @@ while camera.isOpened():
 
             handContours, hierarchy = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
             handContours = sorted(handContours, key=lambda x: cv2.contourArea(x))
-
             if len(handContours) > 0:
                 # this should be the key, the output is rotated back to og thresh size at this point
                 hcx, hcy, hcw, hch = cv2.boundingRect(handContours[-1])
@@ -307,9 +313,11 @@ while camera.isOpened():
 
                 outputY = fingerROI.shape[0]
                 outputX = fingerROI.shape[1]
-
+                pre = time.clock()
                 output = identify_fingers(thumblessROI, fingerROI, palmCenter[1]-hxs, palmCenter[0]-hys)
+                post = time.clock()
 
+                print("exec time", post-pre)
                 # fingerROI = imutils.rotate_bound(fingerROI, -wristAngle)
                 # thumblessROI = imutils.rotate_bound(thumblessROI, -wristAngle)
 
@@ -330,11 +338,23 @@ while camera.isOpened():
                     output[i] = [output[i][0] + hcx, output[i][1] + hcy, output[i][2]]
                     cv2.circle(drawnImg, (output[i][0], output[i][1]), 4, (0,255,0), 2)
 
+                for i in range(len(output)):
+                    output[i] = [int(round((output[i][0]/((sxBoundR-sxBoundL)*frame.shape[1]))*windowW)),
+                                 int(round(output[i][1]/(syBound*frame.shape[0])*windowH)), output[i][2]]
+                    print(output[i])
+
                 # for i in range(len(output)):
                 #     height, width = drawnImg.shape
                 #     output[i][0] = output[i][0] * 1080 // height
-                interpret_finger_state(output, drawnImg)
-                print(output)
+                try:
+                    interpret_finger_state(output, drawnImg)
+                except pyautogui.FailSafeException:
+                    pyautogui.mouseUp()
+                    sys.exit()
+                except SystemExit:
+                    pyautogui.mouseUp()
+
+                # print(output)
 
             # cv2.waitKey(0)
 
@@ -347,9 +367,9 @@ while camera.isOpened():
 
         cv2.imshow('drawn', drawnImg)
 
-    cv2.rectangle(frame, (int((1 - xBound) * frame.shape[1]), 0),
+    cv2.rectangle(frame, (int(xBound * frame.shape[1]), 0),
                   (frame.shape[1], int(yBound * frame.shape[0])), (255, 0, 0), 2)
-    cv2.rectangle(frame, (int((1 - sxBoundL) * frame.shape[1]), 0),
+    cv2.rectangle(frame, (int(sxBoundL * frame.shape[1]), 0),
                   (int(frame.shape[1] * sxBoundR), int(syBound * frame.shape[0])), (0, 255, 0), 2)
 
     # Output video feed

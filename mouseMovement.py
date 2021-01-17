@@ -12,7 +12,7 @@ prevCmd = ''
 prevRegisteredCmd = ''
 check = False
 print(pyautogui.size())
-
+pyautogui.FAILSAFE = False
 
 def mouseMovement(curX, curY, command):
     global prevX, prevY, missedX, missedY, check, cmdCount, prevCmd, prevRegisteredCmd
@@ -22,10 +22,10 @@ def mouseMovement(curX, curY, command):
     if keyboard.is_pressed('z'):
         print("i got here")
         sys.exit()
-    if abs(numpy.sqrt(pow(prevX - curX, 2) + pow(prevY - curY, 2)) > 8):
+    if abs(numpy.sqrt(pow(prevX - curX, 2) + pow(prevY - curY, 2)) > 5):
         pyautogui.moveTo(curX, curY)
         print(pyautogui.position())
-    elif abs(numpy.sqrt(pow(missedX - curX, 2) + pow(missedY - curY, 2)) > 8) and check == True:
+    elif abs(numpy.sqrt(pow(missedX - curX, 2) + pow(missedY - curY, 2)) > 5) and check == True:
         pyautogui.moveTo(curX, curY)
         print(pyautogui.position())
         check = False
@@ -40,16 +40,18 @@ def mouseMovement(curX, curY, command):
         prevCmd = command
         cmdCount = 0
 
-    # if cmdCount == 5:
-    #     if command != prevRegisteredCmd:
-    #         if command == 'l':
-    #             pyautogui.mouseDown(button='left')
-    #         elif command == 'r':
-    #             pyautogui.mouseDown(button='right')
-    #         elif command == 'n':
-    #             pyautogui.mouseUp()
-    #     prevRegisteredCmd = command
-    #     cmdCount = 0
+    if cmdCount == 5:
+        pyautogui.moveTo(curX, curY)
+        if command != prevRegisteredCmd:
+            if command == 'l':
+                pyautogui.mouseDown(button='left')
+                pyautogui.mouseUp()
+            elif command == 'r':
+                pyautogui.mouseDown(button='right')
+            elif command == 'n':
+                pyautogui.mouseUp()
+        prevRegisteredCmd = command
+        cmdCount = 0
 
     prevX = curX
     prevY = curY

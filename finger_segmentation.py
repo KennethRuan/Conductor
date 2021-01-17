@@ -68,7 +68,6 @@ def identify_fingers(image, finger_components, x, y):
             ret.append(args)
 
     ret.sort(key = lambda val: val[0])
-    print("Before",ret)
     finger_count = len(ret)
 
     for i in range(len(ret)):
